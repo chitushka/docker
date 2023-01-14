@@ -1,0 +1,40 @@
+FROM ubuntu:20.04
+
+MAINTAINER Chitushka <chitushka@yahoo.com>
+
+ENV DEBIAN_FRONTEND noninteractive
+ENV TZ=Europe/Moscow
+
+ENV V=7.4
+
+# Обновление пакетов ОС
+RUN set -eux; echo 'Package update:'
+RUN set -eux; apt update; apt upgrade -y
+
+# Устанавлизаем временную зону
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+
+# Установка необходимых пакетов
+RUN set -eux; echo 'Package install:'
+RUN set -eux; apt install -y apt-utils autoconf automake bison build-essential flex gcc git pkg-config re2c vim wget curl
+
+# Java - https://openjdk.org
+RUN set -eux; apt install -y default-jdk 
+
+# Rust Language - https://rust-lang.org
+RUN set -eux; apt install -y rustc 
+
+# PHP - https://php.net
+RUN set -eux; apt install -y php$V php$V-common php$V-mysql php$V-odbc php$V-pgsql php$V-sqlite3 php$V-xml
+
+# Dart language - https://dart.dev
+RUN set -eux; wget https://storage.googleapis.com/dart-archive/channels/stable/release/latest/linux_packages/dart_2.18.7-1_amd64.deb; dpkg -i dart_2.18.7-1_amd64.deb
+
+# Free Pascal - https://www.freepascal.org/
+RUN set -eux; apt install -y fpc
+
+WORKDIR /home
+
+# EXPOSE 80
+
+CMD ["bash"]
