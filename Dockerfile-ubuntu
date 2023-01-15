@@ -20,8 +20,8 @@ RUN set -eux; apt-get install -y apt-utils autoconf automake bison build-essenti
 RUN set -eux; apt-get install -y freeglut3 freeglut3-dev
 
 # Java - https://openjdk.org
-# RUN set -eux; apt-get install -y default-jdk # 11 - version
-RUN set -eux; apt-get install -y openjdk-17-jdk
+RUN set -eux; apt-get install -y default-jdk # 11 - version
+#RUN set -eux; apt-get install -y openjdk-17-jdk
 RUN set -eux; apt-get install -y maven
 
 # Rust Language - https://rust-lang.org
@@ -43,6 +43,7 @@ RUN set -eux; apt-get install -y npm
 
 # The Julia Programming Language - https://julialang.org
 RUN set -eux; apt-get install -y julia
+
 WORKDIR /home
 
 # EXPOSE 80
