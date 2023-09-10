@@ -4,7 +4,7 @@ MAINTAINER Chitushka <chitushka@yahoo.com>
 
 ENV DEBIAN_FRONTEND noninteractive
 
-RUN apt-get update && apt-get install --no-install-recommends -y wget unzip curl git vim \
+RUN apt update && apt install --no-install-recommends -y wget unzip curl git vim \
 libzip-dev \
 libpq-dev \
 libpng-dev \
@@ -18,8 +18,6 @@ libsmbclient libsmbclient-dev \
 libxslt-dev \
 libengine-gost-openssl \
 libc-client-dev libkrb5-dev
-
-RUN rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-install zip pdo pdo_mysql mysqli pdo_pgsql pgsql bcmath iconv intl ldap soap sockets opcache pcntl
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg
@@ -36,13 +34,14 @@ RUN wget https://download.oracle.com/otn_software/linux/instantclient/2111000/in
 && unzip instantclient-sdk-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle \
 && rm -rf *.zip
 
-RUN echo /opt/oracle/instantclient_21_11 > /etc/ld.so.conf.d/oci.conf && ldconfig
+RUN mv /opt/oracle/instantclient_21_11 /opt/oracle/instantclient \
+  && echo /opt/oracle/instantclient > /etc/ld.so.conf.d/oci.conf \
+  && ldconfig \
+  && docker-php-ext-configure pdo_oci --with-pdo-oci=instantclient,/opt/oracle/instantclient \
+  && docker-php-ext-install pdo_oci
 
-RUN docker-php-ext-configure pdo_oci --with-pdo-oci=instantclient,/opt/oracle/instantclient_21_11
-RUN docker-php-ext-install pdo_oci
-
-RUN pecl install oci8 instantclient,/opt/oracle/instantclient_21_11
-RUN docker-php-ext-enable oci8
+RUN echo 'instantclient,/opt/oracle/instantclient' | pecl install oci8 \
+  && docker-php-ext-enable oci8
 
 RUN pecl install sqlsrv
 RUN pecl install pdo_sqlsrv
@@ -97,11 +96,11 @@ RUN docker-php-ext-configure imap --with-kerberos --with-imap-ssl \
 # Установка composer
 RUN curl -o composer-setup.php http://getcomposer.org/installer; php composer-setup.php; mv composer.phar /usr/local/bin/composer; rm composer-setup.php
 
-# Проверка версии PHP и установленных модулей
-RUN php -m; php -v
+RUN rm -rf /var/lib/apt/lists/* && rm -rf /tmp/pear
 
 # Еще нужно установить след. расширения:
 # apcu
 # informix
 # firebird
 # pdo_firebird
+# mqseries
