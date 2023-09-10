@@ -33,7 +33,7 @@ RUN wget https://download.oracle.com/otn_software/linux/instantclient/2111000/in
 && wget https://download.oracle.com/otn_software/linux/instantclient/2111000/instantclient-sdk-linux.x64-21.11.0.0.0dbru.zip \
 && unzip instantclient-basic-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle \
 && unzip instantclient-sqlplus-linux.x64-21.11.0.0.0dbru -d /opt/oracle \
-&& unzip instantclient-sdk-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle
+&& unzip instantclient-sdk-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle \
 && rm -rf *.zip
 
 RUN echo /opt/oracle/instantclient_21_11 > /etc/ld.so.conf.d/oci.conf && ldconfig
