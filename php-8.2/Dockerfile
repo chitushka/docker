@@ -20,23 +20,27 @@ libtidy-dev \
 libffi-dev \
 libfbclient2 \
 firebird-dev \
-libpspell-dev
+libpspell-dev \
+libmagickwand-dev
 
 RUN rm -rf /var/lib/apt/lists/*
 
 RUN docker-php-ext-install zip pdo pdo_mysql mysqli pdo_pgsql pgsql bcmath iconv intl ldap soap sockets opcache pcntl sysvmsg sysvsem sysvshm tidy shmop exif ffi calendar xsl gettext pspell
 
 RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-  && docker-php-ext-install gd
+ && docker-php-ext-install gd
 
-RUN mkdir /opt/oracle \
- && wget https://download.oracle.com/otn_software/linux/instantclient/2111000/instantclient-basic-linux.x64-21.11.0.0.0dbru.zip \
- && wget https://download.oracle.com/otn_software/linux/instantclient/2111000/instantclient-sqlplus-linux.x64-21.11.0.0.0dbru.zip \
- && wget https://download.oracle.com/otn_software/linux/instantclient/2111000/instantclient-sdk-linux.x64-21.11.0.0.0dbru.zip \
- && unzip instantclient-basic-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle \
- && unzip instantclient-sqlplus-linux.x64-21.11.0.0.0dbru -d /opt/oracle \
- && unzip instantclient-sdk-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle \
- && rm -rf *.zip
+# Устанавливаем Oracle InstantClient и расширение OCI8
+RUN mkdir /tmp/oracle \
+ && mkdir /opt/oracle
+
+COPY oracle/*.zip /tmp/oracle/
+
+RUN unzip /tmp/oracle/instantclient-basic-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle \
+ && unzip /tmp/oracle/instantclient-sqlplus-linux.x64-21.11.0.0.0dbru -d /opt/oracle \
+ && unzip /tmp/oracle/instantclient-sdk-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle
+
+RUN rm -rf /tmp/oracle/
 
 RUN mv /opt/oracle/instantclient_21_11 /opt/oracle/instantclient \
  && echo /opt/oracle/instantclient > /etc/ld.so.conf.d/oci.conf \
@@ -61,6 +65,36 @@ RUN pecl install smbclient \
 
 RUN pecl install mongodb \
  && docker-php-ext-enable mongodb
+
+# Устанавливаем IBM MQ
+RUN mkdir /tmp/ibmmq \
+ && mkdir /tmp/php_pecl
+
+COPY ibmmq/*.tar.gz /tmp/ibmmq/
+
+RUN cd /tmp/ibmmq \
+ && tar -xzf /tmp/ibmmq/9.3.3.1-IBM-MQC-UbuntuLinuxX64.tar.gz \
+ && cd MQClient \
+ && ./mqlicense.sh -accept \
+ && dpkg -i ibmmq-runtime_9.3.3.1_amd64.deb \
+ && dpkg -i ibmmq-sdk_9.3.3.1_amd64.deb \
+ && dpkg -i ibmmq-gskit_9.3.3.1_amd64.deb \
+ && dpkg -i ibmmq-client_9.3.3.1_amd64.deb \
+ && dpkg -i ibmmq-msg-ru_9.3.3.1_amd64.deb
+
+COPY ibmmq/*.tgz /tmp/php_pecl/
+
+RUN cd /tmp/php_pecl \
+ && tar -zxf mqseries-0.15.0.tgz \
+ && cd mqseries-0.15.0/mqseries-0.15.0 \
+ && phpize \
+ && ./configure --with-libdir=lib64 \
+ && make \
+ && make install \
+ && echo 'extension=mqseries.so' > /usr/local/etc/php/conf.d/mqseries.ini
+
+RUN rm -rf /tmp/ibmmq/ \
+ && rm -rf /tmp/php_pecl/
 
 # Установка ГОСТ алгоритмов в openssl
 ARG PREFIX_SSL="/etc/ssl"
@@ -103,11 +137,10 @@ RUN wget https://github.com/FirebirdSQL/php-firebird/releases/download/v3.0.1/ph
 RUN echo 'yes' | pecl install memcache \
  && docker-php-ext-enable memcache
 
+RUN pecl install imagick \
+ && docker-php-ext-enable imagick
+
 # Установка composer
 RUN curl -o composer-setup.php http://getcomposer.org/installer; php composer-setup.php; mv composer.phar /usr/local/bin/composer; rm composer-setup.php
 
 RUN rm -rf /tmp/pear
-
-# Еще нужно установить след. расширения:
-# informix
-# mqseries
