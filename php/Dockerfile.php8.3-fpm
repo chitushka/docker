@@ -1,0 +1,110 @@
+FROM php:8.3-fpm
+
+MAINTAINER Chitushka <chitushka@yahoo.com>
+
+RUN apt-get update && apt-get install -y unzip \
+libaio1t64 \
+libzip-dev \
+libpq-dev \
+libpng-dev \
+libfreetype6-dev libjpeg62-turbo-dev \
+libicu-dev \
+libldap2-dev \
+libxml2-dev \
+unixodbc-dev unixodbc \
+libsmbclient libsmbclient-dev \
+libxslt-dev \
+libffi-dev \
+libfbclient2 \
+firebird-dev \
+libmagickwand-dev
+
+RUN ln -s /usr/lib/x86_64-linux-gnu/libaio.so.1t64.0.2 /usr/lib/x86_64-linux-gnu/libaio.so.1
+
+RUN rm -rf /var/lib/apt/lists/*
+
+RUN docker-php-ext-install zip pdo pdo_mysql mysqli pdo_pgsql pgsql bcmath iconv intl ldap soap sockets opcache pcntl ffi calendar xsl
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install gd
+
+# Устанавливаем Oracle InstantClient и расширение OCI8
+RUN mkdir /tmp/oracle \
+ && mkdir /opt/oracle
+
+COPY oracle/*.zip /tmp/oracle/
+
+RUN unzip /tmp/oracle/instantclient-basic-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle \
+ && unzip /tmp/oracle/instantclient-sqlplus-linux.x64-21.11.0.0.0dbru -d /opt/oracle \
+ && unzip /tmp/oracle/instantclient-sdk-linux.x64-21.11.0.0.0dbru.zip -d /opt/oracle
+
+RUN rm -rf /tmp/oracle/
+
+RUN mv /opt/oracle/instantclient_21_11 /opt/oracle/instantclient \
+ && echo /opt/oracle/instantclient > /etc/ld.so.conf.d/oci.conf \
+ && ldconfig \
+ && docker-php-ext-configure pdo_oci --with-pdo-oci=instantclient,/opt/oracle/instantclient \
+ && docker-php-ext-install pdo_oci
+
+RUN echo 'instantclient,/opt/oracle/instantclient' | pecl install oci8 \
+ && docker-php-ext-enable oci8
+
+RUN pecl install sqlsrv \
+ && docker-php-ext-enable sqlsrv
+
+RUN pecl install pdo_sqlsrv \
+ && docker-php-ext-enable pdo_sqlsrv
+
+RUN docker-php-ext-configure pdo_odbc --with-pdo-odbc=unixODBC,/usr \
+ && docker-php-ext-install pdo_odbc
+
+RUN pecl install smbclient \
+ && docker-php-ext-enable smbclient
+
+# Устанавливаем IBM MQ
+RUN mkdir /tmp/ibmmq \
+ && mkdir /tmp/php_pecl
+
+COPY ibmmq/*.tar.gz /tmp/ibmmq/
+
+RUN cd /tmp/ibmmq \
+ && tar -xzf /tmp/ibmmq/9.4.3.1-IBM-MQC-UbuntuLinuxX64.tar.gz \
+ && cd MQClient \
+ && ./mqlicense.sh -accept \
+ && dpkg -i ibmmq-runtime_9.4.3.1_amd64.deb \
+ && dpkg -i ibmmq-sdk_9.4.3.1_amd64.deb \
+ && dpkg -i ibmmq-gskit_9.4.3.1_amd64.deb \
+ && dpkg -i ibmmq-client_9.4.3.1_amd64.deb \
+ && dpkg -i ibmmq-msg-ru_9.4.3.1_amd64.deb
+
+COPY ibmmq/*.tgz /tmp/php_pecl/
+
+RUN cd /tmp/php_pecl \
+ && tar -zxf mqseries-0.15.0.tgz \
+ && cd mqseries-0.15.0/mqseries-0.15.0 \
+ && phpize \
+ && ./configure --with-libdir=lib64 \
+ && make \
+ && make install \
+ && echo 'extension=mqseries.so' > /usr/local/etc/php/conf.d/mqseries.ini
+
+RUN rm -rf /tmp/ibmmq/ \
+ && rm -rf /tmp/php_pecl/
+
+COPY firebird/php_8.3.0-interbase-3.0.1-linux-x64.so /usr/local/lib/php/extensions/no-debug-non-zts-20230831/interbase.so
+RUN echo 'extension=interbase.so' > /usr/local/etc/php/conf.d/interbase.ini \
+ && docker-php-ext-install pdo_firebird
+
+RUN pecl install imagick \
+ && docker-php-ext-enable imagick
+
+RUN rm -rf /tmp/pear
+
+RUN chmod o+x /
+
+WORKDIR /var/www/html
+
+EXPOSE 9000
+
+CMD ["php-fpm"]
+
